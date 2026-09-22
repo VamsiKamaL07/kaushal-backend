@@ -4,3 +4,4 @@ flask-cors
 flask-sqlalchemy
 sqlalchemy
 python-dotenv
+authlib
