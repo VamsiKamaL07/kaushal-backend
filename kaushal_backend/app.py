@@ -11,7 +11,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from kaushal_backend.models import db
+from kaushal_backend.models import Admin, db
 from kaushal_backend.auth import auth_bp, configure_oauth
 from kaushal_backend.admin_routes import admin_bp
 from kaushal_backend.data_routes import data_bp
@@ -57,6 +57,20 @@ def migrate_user_columns():
     db.session.commit()
 
 
+def provision_admin_from_environment():
+    """Create or update the deployment admin when credentials are configured."""
+    username = os.getenv("ADMIN_USERNAME", "").strip()
+    password = os.getenv("ADMIN_PASSWORD", "")
+    if not username or not password:
+        return
+    admin = Admin.query.filter_by(username=username).first()
+    if admin is None:
+        admin = Admin(username=username)
+        db.session.add(admin)
+    admin.set_password(password)
+    db.session.commit()
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
 
@@ -79,6 +93,7 @@ def create_app() -> Flask:
     with app.app_context():
         db.create_all()
         migrate_user_columns()
+        provision_admin_from_environment()
 
     @app.route("/api/health")
     def health():

@@ -52,6 +52,10 @@ For Render, use this start command from the repository root:
 gunicorn kaushal_backend.app:app
 ```
 
+Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in Render Environment Variables.
+The app creates or updates that admin account on startup; local SQLite users
+and admin accounts are not copied to Render automatically.
+
 Open **http://127.0.0.1:5000/** — that's the actual website now, not just
 an API. Everything (home, role selection, signup, dashboards, admin) is
 one live app.
