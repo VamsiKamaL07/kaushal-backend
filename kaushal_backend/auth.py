@@ -25,8 +25,8 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, session, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 
-from models import db, User, Admin
-from email_service import send_email, EmailError
+from kaushal_backend.models import db, User, Admin
+from kaushal_backend.email_service import send_email, EmailError
 
 auth_bp = Blueprint("auth", __name__)
 oauth = OAuth()

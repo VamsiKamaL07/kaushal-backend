@@ -43,7 +43,7 @@ completely separate from student/alumni accounts.
 ## 3. Run it
 
 ```bash
-python app.py
+python -m kaushal_backend.app
 ```
 
 Open **http://127.0.0.1:5000/** — that's the actual website now, not just
@@ -103,6 +103,7 @@ enabling two-step verification. Keep it only in `.env` and never commit it.
 
 ```
 kaushal_backend/
+├── __init__.py
 ├── app.py            # Flask app factory + serves frontend/index.html at "/"
 ├── models.py         # User (student/alumni) + separate Admin table
 ├── auth.py           # signup/login + /me session-check routes + admin login

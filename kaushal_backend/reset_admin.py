@@ -1,8 +1,8 @@
 """Change the existing admin username and password interactively."""
 
 import getpass
-from app import app
-from models import db, Admin
+from kaushal_backend.app import app
+from kaushal_backend.models import db, Admin
 
 with app.app_context():
     admins = Admin.query.order_by(Admin.id).all()

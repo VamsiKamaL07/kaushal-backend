@@ -11,10 +11,10 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from models import db
-from auth import auth_bp, configure_oauth
-from admin_routes import admin_bp
-from data_routes import data_bp
+from kaushal_backend.models import db
+from kaushal_backend.auth import auth_bp, configure_oauth
+from kaushal_backend.admin_routes import admin_bp
+from kaushal_backend.data_routes import data_bp
 
 load_dotenv()  # reads .env into environment variables
 

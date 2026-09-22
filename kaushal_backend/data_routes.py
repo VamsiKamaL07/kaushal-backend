@@ -5,8 +5,8 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from auth import admin_required, login_required
-from models import AlumniFeedback, AlumniProfile, StudentProfile, User, db
+from kaushal_backend.auth import admin_required, login_required
+from kaushal_backend.models import AlumniFeedback, AlumniProfile, StudentProfile, User, db
 
 data_bp = Blueprint("data", __name__)
 

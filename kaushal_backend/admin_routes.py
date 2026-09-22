@@ -15,9 +15,9 @@ import os
 
 from flask import Blueprint, request, jsonify
 
-from models import AlumniFeedback, StudentProfile, User, EmailNotification, db
-from email_service import send_email, EmailError
-from auth import admin_required
+from kaushal_backend.models import AlumniFeedback, StudentProfile, User, EmailNotification, db
+from kaushal_backend.email_service import send_email, EmailError
+from kaushal_backend.auth import admin_required
 
 admin_bp = Blueprint("admin", __name__)
 

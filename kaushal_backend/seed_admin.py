@@ -16,8 +16,8 @@ staff member).
 """
 
 import getpass
-from app import app
-from models import db, Admin
+from kaushal_backend.app import app
+from kaushal_backend.models import db, Admin
 
 with app.app_context():
     db.create_all()
