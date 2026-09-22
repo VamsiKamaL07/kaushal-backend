@@ -1,5 +1,6 @@
-Flask
-flask-cors
-flask-mail
-python-dotenv
+flask
 gunicorn
+flask-cors
+flask-sqlalchemy
+sqlalchemy
+python-dotenv
