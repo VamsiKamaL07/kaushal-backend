@@ -56,6 +56,13 @@ Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in Render Environment Variables.
 The app creates or updates that admin account on startup; local SQLite users
 and admin accounts are not copied to Render automatically.
 
+Use these Render values for the current admin account:
+
+```text
+ADMIN_USERNAME=AI&DS
+ADMIN_PASSWORD=LBRCE@4376
+```
+
 Open **http://127.0.0.1:5000/** — that's the actual website now, not just
 an API. Everything (home, role selection, signup, dashboards, admin) is
 one live app.
