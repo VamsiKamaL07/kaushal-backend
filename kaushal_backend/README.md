@@ -6,7 +6,7 @@ No separate Live Server step, no CORS juggling — just:
 ## 1. Set up
 
 ```bash
-cd kaushal-x-backend
+cd kaushal_backend
 python -m venv venv
 ```
 
@@ -102,7 +102,7 @@ enabling two-step verification. Keep it only in `.env` and never commit it.
 ## Project structure
 
 ```
-kaushal-x-backend/
+kaushal_backend/
 ├── app.py            # Flask app factory + serves frontend/index.html at "/"
 ├── models.py         # User (student/alumni) + separate Admin table
 ├── auth.py           # signup/login + /me session-check routes + admin login
