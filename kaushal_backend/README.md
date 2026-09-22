@@ -46,6 +46,12 @@ completely separate from student/alumni accounts.
 python -m kaushal_backend.app
 ```
 
+For Render, use this start command from the repository root:
+
+```bash
+gunicorn kaushal_backend.app:app
+```
+
 Open **http://127.0.0.1:5000/** — that's the actual website now, not just
 an API. Everything (home, role selection, signup, dashboards, admin) is
 one live app.
