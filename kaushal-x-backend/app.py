@@ -1,0 +1,100 @@
+"""
+app.py
+-------
+Entry point. Run with:  python app.py
+API will be at http://localhost:5000
+"""
+
+import os
+from sqlalchemy import inspect, text
+from flask import Flask, send_from_directory
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+from models import db
+from auth import auth_bp, configure_oauth
+from admin_routes import admin_bp
+from data_routes import data_bp
+
+load_dotenv()  # reads .env into environment variables
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
+
+def migrate_user_columns():
+    """Add searchable user fields and auth columns to existing databases."""
+    inspector = inspect(db.engine)
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    additions = {
+        "skills": "TEXT NOT NULL DEFAULT ''",
+        "company": "VARCHAR(100)",
+        "profile_pic": "VARCHAR(500)",
+        "verified": "BOOLEAN NOT NULL DEFAULT 1",
+        "auth_type": "VARCHAR(20) NOT NULL DEFAULT 'manual'",
+        "verification_token": "VARCHAR(128)",
+        "verification_expires_at": "DATETIME",
+    }
+    for name, definition in additions.items():
+        if name not in columns:
+            db.session.execute(text(f"ALTER TABLE users ADD COLUMN {name} {definition}"))
+    db.session.execute(text("""
+        UPDATE users
+        SET skills = COALESCE((
+            SELECT skills FROM student_profiles
+            WHERE student_profiles.user_id = users.id
+        ), '')
+        WHERE role = 'student' AND (skills IS NULL OR skills = '')
+    """))
+    db.session.execute(text("""
+        UPDATE users
+        SET company = COALESCE((
+            SELECT company FROM alumni_profiles
+            WHERE alumni_profiles.user_id = users.id
+        ), company)
+        WHERE role = 'alumni' AND (company IS NULL OR company = '')
+    """))
+    db.session.commit()
+
+
+def create_app() -> Flask:
+    app = Flask(__name__, static_folder=None)
+
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///kaushalx.db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+    db.init_app(app)
+    configure_oauth(app)
+
+    # Allow your frontend origin(s) to send cookies cross-origin.
+    # Replace "*" with your actual frontend URL(s) before deploying.
+    CORS(app, supports_credentials=True, origins=os.getenv("FRONTEND_ORIGIN", "*"))
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(data_bp)
+
+    with app.app_context():
+        db.create_all()
+        migrate_user_columns()
+
+    @app.route("/api/health")
+    def health():
+        return {"status": "ok"}
+
+    # Serve the frontend itself — visiting http://127.0.0.1:5000/ now
+    # loads the actual site, not a 404. The API and the site share one
+    # origin, so session cookies just work without any CORS juggling.
+    @app.route("/")
+    def serve_index():
+        return send_from_directory(FRONTEND_DIR, "index.html")
+
+    return app
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
