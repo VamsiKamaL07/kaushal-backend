@@ -312,9 +312,11 @@ tr:last-child td{border-bottom:none;}
 
 /* ---- admin: email notification panel ---- */
 .recipient-list{max-height:230px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; border:1px solid var(--border-soft); border-radius:12px; padding:8px; background:var(--surface-2);}
-.recipient-row{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:13.5px; cursor:pointer;}
+.recipient-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 10px; border-radius:8px; font-size:13.5px;}
 .recipient-row:hover{background:var(--surface);}
-.recipient-row input[type=checkbox]{width:16px; height:16px; accent-color:var(--blue-600); flex-shrink:0;}
+.recipient-select{display:flex; align-items:center; gap:10px; min-width:0; cursor:pointer;}
+.recipient-select input[type=checkbox]{width:16px; height:16px; accent-color:var(--blue-600); flex-shrink:0;}
+.recipient-actions{display:flex; gap:6px; flex-shrink:0;}
 .char-count{font-size:11.5px; color:var(--muted-light); text-align:right; margin-top:4px;}
 .notify-result{display:flex; justify-content:space-between; gap:10px; padding:9px 13px; border-radius:9px; font-size:12.5px; background:var(--surface-2); margin-bottom:6px; font-weight:600;}
 .notify-result.sent{color:var(--success);}
@@ -810,8 +812,8 @@ tr:last-child td{border-bottom:none;}
               <option value="alumni">Alumni only</option>
             </select>
           </div>
-          <div class="field"><label>Skill contains</label><input type="text" id="notifySkillFilter" placeholder="e.g. Python" oninput="loadAdminUsers()"></div>
-          <div class="field"><label>Company contains</label><input type="text" id="notifyCompanyFilter" placeholder="e.g. TCS" oninput="loadAdminUsers()"></div>
+          <div class="field"><label>Skill contains</label><input type="text" id="notifySkillFilter" placeholder="e.g. Python" oninput="queueAdminUsersLoad()"></div>
+          <div class="field"><label>Company contains</label><input type="text" id="notifyCompanyFilter" placeholder="e.g. TCS" oninput="queueAdminUsersLoad()"></div>
           <div class="field"><label>Selected recipients</label>
             <div style="padding-top:11px;font-size:13.5px;font-weight:600;color:var(--blue-700);" id="selectedCount">0 selected</div></div>
         </div>
@@ -1225,6 +1227,15 @@ async function adminLogout(){
 /* ---------- Admin Portal: Send Email Notification ---------- */
 let allRecipients = [];
 let selectedRecipients = new Set();
+let adminUsersLoadTimer;
+let adminUsersRequest = 0;
+function queueAdminUsersLoad(){
+  clearTimeout(adminUsersLoadTimer);
+  adminUsersLoadTimer = setTimeout(loadAdminUsers, 250);
+}
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
 async function loadEmailStatus(){
   const status = document.getElementById('notifyEmailStatus');
   try{
@@ -1237,6 +1248,7 @@ async function loadEmailStatus(){
   }
 }
 async function loadAdminUsers(){
+  const requestId = ++adminUsersRequest;
   const role = document.getElementById('notifyRoleFilter').value;
   const skill = document.getElementById('notifySkillFilter').value.trim();
   const company = document.getElementById('notifyCompanyFilter').value.trim();
@@ -1249,10 +1261,13 @@ async function loadAdminUsers(){
     if(company) params.set('company', company);
     const qs = params.toString() ? ('?'+params.toString()) : '';
     const endpoint = skill || company ? '/api/admin/filter-users' : '/api/admin/get-users';
-    allRecipients = await api(endpoint + qs);
+    const recipients = await api(endpoint + qs);
+    if(requestId !== adminUsersRequest) return;
+    allRecipients = recipients;
     selectedRecipients.clear();
     renderRecipients();
   }catch(e){
+    if(requestId !== adminUsersRequest) return;
     list.innerHTML = '<p class="empty-note">Could not load recipients — please sign in again.</p>';
   }
 }
@@ -1264,11 +1279,29 @@ function renderRecipients(){
     return;
   }
   list.innerHTML = allRecipients.map(u=>`
-    <label class="recipient-row">
-      <input type="checkbox" value="${u.id}" onchange="toggleRecipient(${u.id}, this.checked)">
-      <span style="flex:1;">${u.name} <span class="muted" style="font-size:11.5px;">· ${u.role} · ${u.email}</span></span>
-    </label>`).join('');
+    <div class="recipient-row">
+      <label class="recipient-select">
+        <input type="checkbox" value="${Number(u.id)}" onchange="toggleRecipient(${Number(u.id)}, this.checked)">
+        <span>${escapeHtml(u.name)} <span class="muted" style="font-size:11.5px;">· ${escapeHtml(u.role)} · ${escapeHtml(u.email)} · ${u.verified ? 'Verified' : 'Unverified'}</span></span>
+      </label>
+      ${u.verified ? '' : `<div class="recipient-actions"><button class="btn btn-secondary btn-sm" onclick="verifyAdminUser(${Number(u.id)})">Verify</button><button class="btn btn-secondary btn-sm" onclick="resendVerification(${Number(u.id)})">Resend</button></div>`}
+    </div>`).join('');
   updateSelectedCount();
+}
+async function verifyAdminUser(id){
+  try{
+    await api(`/api/admin/users/${id}/verify`, {method:'POST'});
+    const user = allRecipients.find(item=>item.id===id);
+    if(user) user.verified = true;
+    renderRecipients();
+    toast('Account verified.','success');
+  }catch(e){ toast(e.message,'error'); }
+}
+async function resendVerification(id){
+  try{
+    const result = await api(`/api/admin/users/${id}/resend-verification`, {method:'POST'});
+    toast(result.message, result.email_sent ? 'success' : 'error');
+  }catch(e){ toast(e.message,'error'); }
 }
 function toggleRecipient(id, checked){
   if(checked) selectedRecipients.add(id); else selectedRecipients.delete(id);

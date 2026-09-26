@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from kaushal_backend.models import Admin, db
 from kaushal_backend.auth import auth_bp, configure_oauth
@@ -30,10 +31,10 @@ def migrate_user_columns():
         "skills": "TEXT NOT NULL DEFAULT ''",
         "company": "VARCHAR(100)",
         "profile_pic": "VARCHAR(500)",
-        "verified": "BOOLEAN NOT NULL DEFAULT 1",
+        "verified": "BOOLEAN NOT NULL DEFAULT TRUE",
         "auth_type": "VARCHAR(20) NOT NULL DEFAULT 'manual'",
         "verification_token": "VARCHAR(128)",
-        "verification_expires_at": "DATETIME",
+        "verification_expires_at": "TIMESTAMP",
     }
     for name, definition in additions.items():
         if name not in columns:
@@ -74,10 +75,29 @@ def provision_admin_from_environment():
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
 
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///kaushalx.db")
+    production = os.getenv("RENDER", "").lower() == "true" or os.getenv("FLASK_ENV") == "production"
+    secret_key = os.getenv("SECRET_KEY", "")
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if production and not secret_key:
+        raise RuntimeError("SECRET_KEY must be set in production.")
+    if production and not database_url:
+        raise RuntimeError("DATABASE_URL must point to persistent PostgreSQL in production.")
+    if not database_url:
+        database_url = "sqlite:///kaushalx.db"
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgres://"):]
+    elif database_url.startswith("postgresql://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+
+    app.config["SECRET_KEY"] = secret_key or "local-development-only-change-me"
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", str(production)).lower() == "true"
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     db.init_app(app)
     configure_oauth(app)
@@ -112,4 +132,4 @@ def create_app() -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=int(os.getenv("PORT", "10000")))
+    app.run(host="0.0.0.0", debug=True, port=int(os.getenv("PORT", "5000")))

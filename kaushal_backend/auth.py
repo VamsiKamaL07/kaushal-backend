@@ -25,7 +25,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, session, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 
-from kaushal_backend.models import db, User, Admin
+from kaushal_backend.models import db, User, Admin, EmailNotification
 from kaushal_backend.email_service import send_email, EmailError
 
 auth_bp = Blueprint("auth", __name__)
@@ -113,19 +113,34 @@ def register():
     db.session.commit()
 
     verification_url = url_for("auth.verify_email", token=token, _external=True)
+    notification = EmailNotification(
+        recipient_email=email,
+        subject="Verify your KAUSHAL-X account",
+        message=f"Hello {first_name},\n\nVerify your email to activate your account:\n{verification_url}\n\nThis link expires in 24 hours.",
+        status="pending",
+    )
+    db.session.add(notification)
+    db.session.commit()
+
     try:
         send_email(
             email,
             "Verify your KAUSHAL-X account",
-            f"Hello {first_name},\n\nVerify your email to activate your account:\n{verification_url}\n\nThis link expires in 24 hours.",
+            notification.message,
         )
+        notification.status = "sent"
     except EmailError as exc:
-        db.session.delete(user)
-        db.session.commit()
-        return jsonify({"error": str(exc)}), 503
+        notification.status = "failed"
+        notification.error = str(exc)[:500]
+    db.session.commit()
 
-    return jsonify({"message": "Account created. Check your email to verify it.",
-                    "verification_required": True}), 201
+    email_sent = notification.status == "sent"
+    return jsonify({
+        "message": "Account created. Check your email to verify it." if email_sent
+        else "Account created, but the verification email could not be sent. Contact an administrator to resend it.",
+        "verification_required": True,
+        "email_sent": email_sent,
+    }), 201
 
 
 @auth_bp.route("/api/auth/verify-email/<token>", methods=["GET"])

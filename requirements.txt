@@ -5,4 +5,5 @@ flask-sqlalchemy
 sqlalchemy
 python-dotenv
 authlib
+psycopg[binary]>=3.2,<4
 requests

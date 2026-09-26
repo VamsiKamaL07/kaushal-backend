@@ -56,12 +56,8 @@ Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in Render Environment Variables.
 The app creates or updates that admin account on startup; local SQLite users
 and admin accounts are not copied to Render automatically.
 
-Use these Render values for the current admin account:
-
-```text
-ADMIN_USERNAME=AI&DS
-ADMIN_PASSWORD=LBRCE@4376
-```
+Choose a new admin username and a unique strong password in Render's
+Environment settings. Never put deployed credentials in this README or Git.
 
 Open **http://127.0.0.1:5000/** — that's the actual website now, not just
 an API. Everything (home, role selection, signup, dashboards, admin) is
@@ -74,7 +70,7 @@ one live app.
 | Role selection → Sign up / Sign in | **Real** — hits `/api/auth/register` and `/api/auth/login` |
 | Phone number | **Stored** — collected as profile contact data; no SMS or OTP is required |
 | Session-based route guards | **Real** — every dashboard nav click asks the server "am I actually logged in?" via `/api/auth/me` / `/api/admin/me` before showing the page |
-| Admin Portal login | **Real** — separate `/api/admin/login`, separate `admins` table, only creatable via `seed_admin.py` |
+| Admin Portal login | **Real** — separate `/api/admin/login`, separate `admins` table, provisioned by `seed_admin.py` or deployment environment variables |
 | Admin "Send Email Notification" | **Real** — selects actual signed-up students/alumni and sends email via `/api/admin/notify` |
 | Google Sign-In button | **Real when configured** — Authlib OAuth stores verified Google identity, profile picture, role, and auth type |
 | Student skill profile and recommendations | **Real** — `/api/student/profile` stores skills/interests and `/api/recommend` uses alumni feedback |
@@ -97,24 +93,44 @@ recipient selection now use the database-backed APIs.
    in with the admin account you created in step 2
 6. In the admin dashboard, select students or alumni by email, enter a
    subject and message, and click **Send email notification**. Delivery
-   requires the SMTP settings below; every attempt is stored locally in
+   requires the configured email provider; every attempt is stored in
    the `email_notifications` table.
 
 ## Email notifications
 
-The app uses standard SMTP and no paid SMS service. Gmail can be used with
-a free account and a Google app password:
+Render deployments should use Resend's HTTPS API because Render Free blocks
+outbound SMTP. Configure these environment variables in Render:
 
 ```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-16-character-app-password
-EMAIL_FROM=your-email@gmail.com
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+EMAIL_FROM=KAUSHAL-X <verified-sender@your-domain.example>
 ```
 
-Create the app password in your Google Account security settings after
-enabling two-step verification. Keep it only in `.env` and never commit it.
+Verify the sender/domain in Resend before using it. Email delivery failure does
+not delete a registration; admins can verify the account or resend the link.
+
+## Render deployment
+
+The root `render.yaml` creates the web service and persistent PostgreSQL
+database. Connect the GitHub repository to Render, review the Blueprint
+resources, and supply `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `EMAIL_FROM`, and
+`RESEND_API_KEY` when prompted. Set the email sender to a verified Resend
+identity. The health check is `/api/health`; the Gunicorn entry point is
+`kaushal_backend.app:app`.
+
+The Blueprint uses Render's smallest paid web and PostgreSQL plans. This
+avoids Free web-service spin-down delays and Free Postgres's 30-day expiry.
+Review the current Render pricing before applying the Blueprint. Render Free
+can still be selected manually for a temporary demo, but it does not meet the
+always-on or long-term data-retention requirements.
+
+The app rejects production startup if `SECRET_KEY` or `DATABASE_URL` is
+missing, so production will not silently use ephemeral SQLite storage.
+
+Previously committed credentials can remain visible in Git history even after
+their files are removed. Rotate any credentials that were ever committed,
+including the Render admin password and mail-provider credentials.
 
 ## Project structure
 
@@ -125,7 +141,7 @@ kaushal_backend/
 ├── models.py         # User (student/alumni) + separate Admin table
 ├── auth.py           # signup/login + /me session-check routes + admin login
 ├── admin_routes.py   # admin-only: list users, send email notifications
-├── email_service.py  # SMTP email sender
+├── email_service.py  # Resend HTTPS API and local SMTP sender
 ├── seed_admin.py     # CLI-only way to create an admin account
 ├── requirements.txt
 ├── .env.example
