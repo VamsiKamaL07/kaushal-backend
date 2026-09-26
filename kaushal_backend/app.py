@@ -81,7 +81,10 @@ def create_app() -> Flask:
     if production and not secret_key:
         raise RuntimeError("SECRET_KEY must be set in production.")
     if production and not database_url:
-        raise RuntimeError("DATABASE_URL must point to persistent PostgreSQL in production.")
+        raise RuntimeError(
+            "DATABASE_URL is missing. Create a Render PostgreSQL database, then add its Internal Database URL "
+            "to this web service as the DATABASE_URL environment variable and redeploy."
+        )
     if not database_url:
         database_url = "sqlite:///kaushalx.db"
     if database_url.startswith("postgres://"):

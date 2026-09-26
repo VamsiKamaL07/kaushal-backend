@@ -38,6 +38,17 @@ class RegistrationRecoveryTests(unittest.TestCase):
             "password": "test-password",
         })
 
+    def test_missing_production_database_url_explains_render_setup(self):
+        from kaushal_backend.app import create_app
+
+        with patch.dict(os.environ, {
+            "RENDER": "true",
+            "SECRET_KEY": "test-secret-key",
+            "DATABASE_URL": "",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "Internal Database URL"):
+                create_app()
+
     def sign_in_admin(self):
         from kaushal_backend.models import Admin, db
 

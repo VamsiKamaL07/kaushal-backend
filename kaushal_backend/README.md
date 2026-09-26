@@ -128,6 +128,13 @@ always-on or long-term data-retention requirements.
 The app rejects production startup if `SECRET_KEY` or `DATABASE_URL` is
 missing, so production will not silently use ephemeral SQLite storage.
 
+If the web service was created manually in the Render Dashboard, the Blueprint
+environment wiring is not applied automatically. Create a Render PostgreSQL
+database, then open the web service's **Environment** settings and add
+`DATABASE_URL` using the database's **Internal Database URL**. Keep the web
+service and database in the same region, save the change, and redeploy. The
+startup log names this setting if it is missing.
+
 Previously committed credentials can remain visible in Git history even after
 their files are removed. Rotate any credentials that were ever committed,
 including the Render admin password and mail-provider credentials.
