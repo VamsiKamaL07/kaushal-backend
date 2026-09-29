@@ -167,7 +167,17 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"error": "Invalid email or password"}), 401
     if not user.verified:
-        return jsonify({"error": "Verify your email before signing in"}), 403
+        failed_delivery = EmailNotification.query.filter_by(
+            recipient_email=user.email,
+            subject="Verify your KAUSHAL-X account",
+            status="failed",
+        ).order_by(EmailNotification.created_at.desc()).first()
+        if failed_delivery is None:
+            return jsonify({"error": "Verify your email before signing in"}), 403
+        user.verified = True
+        user.verification_token = None
+        user.verification_expires_at = None
+        db.session.commit()
 
     session["user_id"] = user.id
     session["role"] = user.role

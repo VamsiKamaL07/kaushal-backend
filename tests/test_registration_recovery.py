@@ -113,6 +113,20 @@ class RegistrationRecoveryTests(unittest.TestCase):
             self.assertEqual(User.query.filter_by(id=user_id).count(), 1)
             self.assertEqual(EmailNotification.query.order_by(EmailNotification.id.desc()).first().status, "failed")
 
+    def test_failed_verification_delivery_does_not_block_login(self):
+        from kaushal_backend.auth import EmailError
+
+        with patch("kaushal_backend.auth.send_email", side_effect=EmailError("provider unavailable")):
+            response = self.register_user()
+        self.assertEqual(response.status_code, 201)
+
+        login = self.client.post("/api/auth/login", json={
+            "email": "student@example.com",
+            "password": "test-password",
+        })
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.json["role"], "student")
+
 
 if __name__ == "__main__":
     unittest.main()
